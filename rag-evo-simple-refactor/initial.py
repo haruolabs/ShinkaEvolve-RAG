@@ -65,20 +65,6 @@ def _query_features(query: str, strategy: Dict[str, Any]) -> Dict[str, Any]:
         token
         for token in query_tokens
         if any(char.isdigit() for char in token)
-        or token
-        in {
-            "ap",
-            "bbc",
-            "cnn",
-            "guardian",
-            "july",
-            "june",
-            "march",
-            "may",
-            "reuters",
-            "techcrunch",
-            "verge",
-        }
     }
     return {"query_tokens": set(query_tokens), "metadata_tokens": metadata_tokens}
 
