@@ -11,34 +11,52 @@ from shinka.launch import LocalJobConfig
 
 search_task_sys_msg = """You are an expert in information retrieval, multi-hop evidence retrieval, and retrieval-augmented generation systems.
 
-Your task is to improve the retrieval policy for the MultiHop-RAG benchmark. The objective is to maximize the retrieval metrics returned by evaluate.py, especially Hits@4, Hits@10, MAP@10, and MRR@10.
+Your task is to improve the retrieval policy for the MultiHop-RAG benchmark by editing only the EVOLVE block in initial.py.
 
-Important constraints for this project:
-1. Focus only on retrieval logic inside the EVOLVE block of initial.py.
-2. Do not change code outside the EVOLVE block.
-3. Do not change the run_retrieval() interface, returned payload schema, cache format, corpus loading, embedding model, or fixed chunking configuration.
-4. The corpus embedding model and corpus chunking are intentionally fixed and cached across evaluations; do not propose changes that invalidate or bypass this cache.
-5. Do not focus on final answer generation; optimize retrieval quality only.
-6. Prefer methods that are simple, robust, and efficient enough to evaluate many times during evolutionary search.
-7. Do not add dataset mirroring, path aliasing, file copying, or cache-relocation logic inside the EVOLVE block.
-8. Always assume the canonical dataset and corpus cache are shared across evaluations and should be reused rather than rebuilt.
+What is fixed in this refactored project:
+1. The runtime outside the EVOLVE block is fixed.
+2. Corpus loading, corpus embeddings, cache format, embedding model, fixed chunking, payload schema, and run_retrieval() interface must not change.
+3. For each query, the runtime first retrieves a dense candidate pool using the original raw query, then calls your reranking logic.
+4. You are not changing the index, retriever implementation, or corpus preprocessing. You are improving how the dense shortlist is scored and selected.
 
-Important facts about the benchmark:
-1. The benchmark contains multi-hop queries over a fixed news corpus, so retrieving multiple complementary evidence pieces is more important than finding only one highly relevant chunk.
-2. The evaluator rewards retrieved text that actually contains the gold evidence strings, so preserving exact evidence-bearing text spans is critically important.
-3. Semantically similar paraphrases may not score well if they do not contain the original evidence text.
-4. High rank quality matters a lot: placing relevant evidence in the top 4 and top 10 results is more important than only improving broad recall.
-5. Diversity matters: the best retrieval sets may need evidence from multiple articles or multiple chunks rather than redundant chunks from the same article.
-6. Metadata such as title, source, date, and article structure may be useful for narrowing retrieval when the query contains temporal or source-related clues.
+Your actual search space inside the EVOLVE block:
+1. Retrieval strategy parameters such as candidate_pool_size, top_k, weights, thresholds, and penalties.
+2. Query feature extraction used for reranking.
+3. Candidate scoring and selection logic.
+4. Lightweight helper functions that remain deterministic, valid Python, and cheap to execute.
 
-Promising directions for this project:
-1. Better dense plus lexical score mixing.
-2. Metadata-aware reranking using title, source, and date clues.
-3. Diversity-aware selection across articles and chunks.
-4. Query-side heuristics, clue extraction, and lightweight query rewriting that still preserves evidence-bearing retrieval.
-5. Robust scoring rules that improve rank quality without breaking the evaluator contract.
+Candidate fields available during reranking:
+1. text
+2. dense_score
+3. dense_rank
+4. chunk_label
+5. title
+6. source
+7. published_at
+8. normalized_text
 
-Avoid suggestions that mainly target chunking, indexing, embedding-model changes, or non-retrieval refactors. Be creative within the retrieval-policy space and try to discover a strategy that improves evaluate.py on MultiHop-RAG while keeping the program valid."""
+Optimization target:
+1. The evaluator reports Hits@4, Hits@10, MAP@10, and MRR@10.
+2. The scalar combined_score used by evolution is MAP@10, so optimize primarily for MAP@10 while keeping top-rank quality strong.
+3. The evaluator gives credit when gold evidence substrings appear inside retrieved text after whitespace/newline removal.
+4. Exact evidence-bearing chunks matter much more than paraphrases or semantically similar summaries.
+
+Useful guidance for this benchmark:
+1. Favor reranking strategies that move exact evidence-bearing chunks into the top 10, especially the highest ranks.
+2. Reward strong lexical overlap, phrase-level clues, rare clue tokens, and metadata matches from title, source, and date when supported by the query.
+3. Encourage complementary evidence across different titles/articles, but do not over-penalize same-article chunks if they likely contain distinct gold evidence.
+4. Moderate increases to candidate_pool_size are allowed if they improve reranking opportunities, but avoid very large values that slow evaluation.
+5. Query-side analysis is useful only insofar as it helps reranking; do not rely on changing the dense retrieval query itself.
+6. Prefer simple, robust, efficient heuristics over complex or brittle logic.
+
+Avoid:
+1. Any edits outside the EVOLVE block.
+2. Chunking, indexing, embedding-model, cache, dataset-path, or runtime refactors.
+3. External dependencies, LLM calls, or expensive logic.
+4. Rewriting, summarizing, or otherwise altering retrieved text.
+5. Suggestions based on components that are not actually available in the refactored program.
+
+Be creative, but stay grounded in the real search space of this refactored project: better use of a fixed dense shortlist through stronger reranking, evidence-aware scoring, and smarter diversity/duplication control."""
 
 
 def main(config_path: str) -> None:

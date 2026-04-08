@@ -135,12 +135,7 @@ def aggregate_retrieval_metrics(
     retrieval_save_list = run_output["retrieval_save_list"]
     metrics, counts = evaluate_retrieval_results(retrieval_save_list)
 
-    combined_score = (
-        0.45 * metrics["MAP@10"]
-        + 0.30 * metrics["Hits@4"]
-        + 0.15 * metrics["MRR@10"]
-        + 0.10 * metrics["Hits@10"]
-    )
+    combined_score = metrics["MAP@10"] # This can be adjusted to weight different metrics but let's use MAP@10 as the primary score for now.
 
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
